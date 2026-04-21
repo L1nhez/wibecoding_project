@@ -1,0 +1,14 @@
+{
+  "name": "wibecoding-habit-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Telegram Mini App habit tracker with per-user persistence.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

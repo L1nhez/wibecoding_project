@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Habit Tracker</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="dateLabel">Today</p>
+          <h1>Habits</h1>
+        </div>
+        <div class="avatar" id="avatar">D</div>
+      </header>
+
+      <section class="summary" aria-label="Daily progress">
+        <div>
+          <span id="progressText">0 of 0</span>
+          <p>completed today</p>
+        </div>
+        <div class="ring" aria-hidden="true">
+          <span id="progressPercent">0%</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Today</h2>
+          <button class="ghost-button" id="resetDoneButton" type="button">Clear</button>
+        </div>
+        <div class="habit-list" id="habitList"></div>
+        <p class="empty-state" id="emptyState">No active habits yet.</p>
+      </section>
+
+      <form class="add-form" id="addHabitForm">
+        <input id="habitInput" name="title" maxlength="60" autocomplete="off" placeholder="New habit">
+        <button type="submit">Add</button>
+      </form>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Note</h2>
+          <span class="saved-label" id="saveStatus">Saved</span>
+        </div>
+        <textarea id="noteInput" maxlength="300" placeholder="Small note for today"></textarea>
+      </section>
+
+      <nav class="tabs" aria-label="Stats">
+        <button class="tab active" type="button" data-range="7">7 days</button>
+        <button class="tab" type="button" data-range="14">14 days</button>
+        <button class="tab" type="button" data-range="30">30 days</button>
+      </nav>
+      <section class="history" id="historyGrid" aria-label="Habit history"></section>
+    </main>
+
+    <template id="habitTemplate">
+      <article class="habit-row">
+        <button class="check-button" type="button" aria-label="Toggle habit">
+          <span></span>
+        </button>
+        <div class="habit-copy">
+          <h3></h3>
+          <p></p>
+        </div>
+        <button class="archive-button" type="button" aria-label="Archive habit">×</button>
+      </article>
+    </template>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
