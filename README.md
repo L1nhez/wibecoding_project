@@ -7,8 +7,10 @@ A minimal Telegram Mini App for tracking daily habits.
 - Saves habit data per Telegram user.
 - Uses a dark, Telegram-friendly interface.
 - Tracks today's habit check-ins.
-- Stores a short daily note.
-- Shows simple 7, 14, and 30 day progress history.
+- Stores daily wishes in `Пожелания`.
+- Supports daily, weekday, selected weekday, one-day, and interval habit schedules.
+- Shows 7, 14, 30, and 365 day progress history.
+- Counts a full-completion streak.
 
 ## Run locally
 
@@ -34,13 +36,31 @@ npm start
 User data is stored in `data/habit-state.json`, which is intentionally ignored by git.
 Set `DATA_DIR` to store the file in another directory.
 
+## Bot button setup
+
+Set these Render environment variables:
+
+```text
+BOT_TOKEN=your_bot_token
+PUBLIC_URL=https://your-render-service.onrender.com
+```
+
+After Render redeploys, open this URL once in a browser:
+
+```text
+https://your-render-service.onrender.com/telegram/setup
+```
+
+Then send `/start` to your bot. The bot will reply with an `Открыть трекер` button that launches the Mini App.
+
 ## Deploy on Render
 
 1. Push this repository to GitHub.
 2. In Render, create a new Web Service from this repository.
 3. Use `npm start` as the start command.
 4. Add `BOT_TOKEN` as an environment variable.
-5. For real user data, add persistent storage and set `DATA_DIR` to that mounted directory.
-6. Use the Render HTTPS URL as the Telegram Mini App URL.
+5. Add `PUBLIC_URL` with your Render HTTPS URL.
+6. For real user data, add persistent storage and set `DATA_DIR` to that mounted directory.
+7. Use the Render HTTPS URL as the Telegram Mini App URL.
 
 The included `render.yaml` can be used as a blueprint.

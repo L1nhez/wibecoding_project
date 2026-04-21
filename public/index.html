@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Habit Tracker</title>
+    <title>Трекер привычек</title>
     <link rel="stylesheet" href="/styles.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
@@ -11,62 +11,109 @@
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow" id="dateLabel">Today</p>
-          <h1>Habits</h1>
+          <p class="eyebrow" id="dateLabel">Сегодня</p>
+          <h1>Привычки</h1>
         </div>
-        <div class="avatar" id="avatar">D</div>
+        <div class="top-actions">
+          <button class="icon-button" id="settingsButton" type="button" aria-label="Настройки">⚙</button>
+          <div class="avatar" id="avatar">D</div>
+        </div>
       </header>
 
-      <section class="summary" aria-label="Daily progress">
+      <div class="settings-menu" id="settingsMenu" hidden>
+        <button type="button">Профиль</button>
+        <button type="button">Настройки</button>
+        <button type="button">Цвет темы</button>
+      </div>
+
+      <section class="date-picker" aria-label="Выбор дня">
+        <button class="date-arrow" id="prevDayButton" type="button" aria-label="Предыдущий день">‹</button>
+        <div class="date-strip" id="dateStrip"></div>
+        <button class="date-arrow" id="nextDayButton" type="button" aria-label="Следующий день">›</button>
+      </section>
+
+      <nav class="tabs range-tabs" aria-label="Период статистики">
+        <button class="tab active" type="button" data-range="7">7 дней</button>
+        <button class="tab" type="button" data-range="14">14 дней</button>
+        <button class="tab" type="button" data-range="30">30 дней</button>
+        <button class="tab" type="button" data-range="365">365</button>
+      </nav>
+      <section class="history" id="historyGrid" aria-label="История привычек"></section>
+
+      <section class="summary" aria-label="Прогресс дня">
         <div>
-          <span id="progressText">0 of 0</span>
-          <p>completed today</p>
+          <span id="progressText">0 из 0</span>
+          <p id="progressCaption">выполнено за день</p>
         </div>
-        <div class="ring" aria-hidden="true">
-          <span id="progressPercent">0%</span>
+        <div class="summary-side">
+          <div class="streak">
+            <span>🔥</span>
+            <strong id="streakCount">0</strong>
+          </div>
+          <div class="ring" aria-hidden="true">
+            <span id="progressPercent">0%</span>
+          </div>
         </div>
       </section>
 
       <section class="panel">
         <div class="panel-head">
-          <h2>Today</h2>
-          <button class="ghost-button" id="resetDoneButton" type="button">Clear</button>
+          <h2 id="selectedDayTitle">Сегодня</h2>
+          <button class="ghost-button" id="resetDoneButton" type="button">Сбросить</button>
         </div>
         <div class="habit-list" id="habitList"></div>
-        <p class="empty-state" id="emptyState">No active habits yet.</p>
+        <p class="empty-state" id="emptyState">На этот день привычек нет.</p>
       </section>
 
-      <form class="add-form" id="addHabitForm">
-        <input id="habitInput" name="title" maxlength="60" autocomplete="off" placeholder="New habit">
-        <button type="submit">Add</button>
+      <form class="habit-form" id="habitForm">
+        <div class="field-row">
+          <input id="habitInput" name="title" maxlength="60" autocomplete="off" placeholder="Новая привычка">
+          <button type="submit" id="habitSubmitButton">Добавить</button>
+        </div>
+        <div class="schedule-grid">
+          <label>
+            <span>Повтор</span>
+            <select id="scheduleType">
+              <option value="daily">Каждый день</option>
+              <option value="weekdays">Будни</option>
+              <option value="weekly">Дни недели</option>
+              <option value="once">В конкретный день</option>
+              <option value="interval">Каждые N дней</option>
+            </select>
+          </label>
+          <label class="schedule-date">
+            <span>Дата</span>
+            <input id="scheduleDate" type="date">
+          </label>
+          <label class="schedule-interval">
+            <span>Интервал</span>
+            <input id="scheduleInterval" type="number" min="1" max="365" value="2">
+          </label>
+        </div>
+        <div class="weekday-picker" id="weekdayPicker" aria-label="Дни недели"></div>
+        <button class="ghost-button cancel-edit" id="cancelEditButton" type="button" hidden>Отменить правку</button>
       </form>
 
       <section class="panel">
         <div class="panel-head">
-          <h2>Note</h2>
-          <span class="saved-label" id="saveStatus">Saved</span>
+          <h2>Пожелания</h2>
+          <span class="saved-label" id="saveStatus">Сохранено</span>
         </div>
-        <textarea id="noteInput" maxlength="300" placeholder="Small note for today"></textarea>
+        <textarea id="noteInput" maxlength="300" placeholder="Пожелание или заметка на этот день"></textarea>
       </section>
-
-      <nav class="tabs" aria-label="Stats">
-        <button class="tab active" type="button" data-range="7">7 days</button>
-        <button class="tab" type="button" data-range="14">14 days</button>
-        <button class="tab" type="button" data-range="30">30 days</button>
-      </nav>
-      <section class="history" id="historyGrid" aria-label="Habit history"></section>
     </main>
 
     <template id="habitTemplate">
       <article class="habit-row">
-        <button class="check-button" type="button" aria-label="Toggle habit">
+        <button class="check-button" type="button" aria-label="Отметить привычку">
           <span></span>
         </button>
         <div class="habit-copy">
           <h3></h3>
           <p></p>
         </div>
-        <button class="archive-button" type="button" aria-label="Archive habit">×</button>
+        <button class="edit-button" type="button" aria-label="Изменить привычку">✎</button>
+        <button class="archive-button" type="button" aria-label="Архивировать привычку">×</button>
       </article>
     </template>
 

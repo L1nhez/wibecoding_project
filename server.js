@@ -5,6 +5,7 @@ const crypto = require("crypto");
 
 const PORT = Number(process.env.PORT || 3000);
 const BOT_TOKEN = process.env.BOT_TOKEN || "";
+const PUBLIC_URL = (process.env.PUBLIC_URL || "").replace(/\/$/, "");
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const DATA_FILE = path.join(DATA_DIR, "habit-state.json");
 const PUBLIC_DIR = path.join(__dirname, "public");
@@ -18,10 +19,37 @@ const MIME_TYPES = {
 };
 
 const DEFAULT_HABITS = [
-  { title: "Drink water", color: "#54a9ff" },
-  { title: "Move for 10 min", color: "#67d391" },
-  { title: "Read", color: "#f5c451" }
+  { title: "Вода", color: "#54a9ff" },
+  { title: "Движение 10 минут", color: "#67d391" },
+  { title: "Чтение", color: "#f5c451" }
 ];
+
+function defaultSchedule() {
+  return {
+    type: "daily",
+    days: [],
+    date: "",
+    startDate: todayKey(),
+    interval: 2
+  };
+}
+
+function normalizeSchedule(schedule = {}) {
+  const type = ["daily", "weekdays", "weekly", "once", "interval"].includes(schedule.type)
+    ? schedule.type
+    : "daily";
+  const days = Array.isArray(schedule.days)
+    ? schedule.days.map(Number).filter((day) => day >= 0 && day <= 6)
+    : [];
+
+  return {
+    type,
+    days,
+    date: String(schedule.date || ""),
+    startDate: String(schedule.startDate || todayKey()),
+    interval: Math.max(1, Math.min(365, Number(schedule.interval || 2)))
+  };
+}
 
 async function ensureDataFile() {
   await fs.mkdir(DATA_DIR, { recursive: true });
@@ -55,6 +83,7 @@ function createUserState(profile) {
       id: crypto.randomUUID(),
       title: habit.title,
       color: habit.color,
+      schedule: defaultSchedule(),
       archived: false,
       createdAt: now
     })),
@@ -114,6 +143,10 @@ async function getOrCreateUser(store, profile) {
     await writeStore(store);
   } else {
     store.users[id].profile = { ...store.users[id].profile, ...profile };
+    store.users[id].habits = (store.users[id].habits || []).map((habit) => ({
+      ...habit,
+      schedule: normalizeSchedule(habit.schedule)
+    }));
   }
   return store.users[id];
 }
@@ -138,6 +171,63 @@ function notFound(res) {
   sendJson(res, 404, { error: "Not found" });
 }
 
+async function callTelegram(method, payload) {
+  if (!BOT_TOKEN) {
+    throw new Error("BOT_TOKEN is not configured");
+  }
+
+  const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/${method}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+  if (!data.ok) {
+    throw new Error(data.description || "Telegram API request failed");
+  }
+  return data.result;
+}
+
+async function handleTelegramWebhook(req, res) {
+  const update = await readJson(req);
+  const message = update.message;
+  const chatId = message?.chat?.id;
+  const text = String(message?.text || "");
+
+  if (!chatId) {
+    return sendJson(res, 200, { ok: true });
+  }
+
+  if (text.startsWith("/start")) {
+    const webAppUrl = PUBLIC_URL || `https://${req.headers.host}`;
+    await callTelegram("sendMessage", {
+      chat_id: chatId,
+      text: "Трекер привычек готов. Открой его кнопкой ниже.",
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: "Открыть трекер",
+            web_app: { url: webAppUrl }
+          }
+        ]]
+      }
+    });
+  }
+
+  return sendJson(res, 200, { ok: true });
+}
+
+async function handleTelegramSetup(req, res) {
+  if (!BOT_TOKEN) {
+    return sendJson(res, 500, { error: "BOT_TOKEN is not configured" });
+  }
+
+  const publicUrl = PUBLIC_URL || `https://${req.headers.host}`;
+  const webhookUrl = `${publicUrl}/telegram/webhook`;
+  const result = await callTelegram("setWebhook", { url: webhookUrl });
+  return sendJson(res, 200, { ok: true, webhookUrl, result });
+}
+
 async function handleApi(req, res) {
   const body = req.method === "GET" ? {} : await readJson(req);
   const store = await readStore();
@@ -157,6 +247,7 @@ async function handleApi(req, res) {
       id: crypto.randomUUID(),
       title,
       color: body.color || "#54a9ff",
+      schedule: normalizeSchedule(body.schedule),
       archived: false,
       createdAt: new Date().toISOString()
     });
@@ -173,6 +264,7 @@ async function handleApi(req, res) {
     if (typeof body.title === "string") habit.title = body.title.trim().slice(0, 60);
     if (typeof body.archived === "boolean") habit.archived = body.archived;
     if (typeof body.color === "string") habit.color = body.color;
+    if (typeof body.schedule === "object" && body.schedule) habit.schedule = normalizeSchedule(body.schedule);
     userState.updatedAt = new Date().toISOString();
     await writeStore(store);
     return sendJson(res, 200, { state: userState });
@@ -216,13 +308,29 @@ async function serveStatic(req, res) {
     res.writeHead(200, { "content-type": MIME_TYPES[ext] || "application/octet-stream" });
     res.end(data);
   } catch {
+    // Browser navigations to "unknown" paths should still load the app shell.
+    // This avoids JSON 404s when the URL isn't exactly "/" (common in Telegram or refreshes).
+    const acceptsHtml = String(req.headers.accept || "").includes("text/html");
+    if (req.method === "GET" && acceptsHtml) {
+      try {
+        const html = await fs.readFile(path.join(PUBLIC_DIR, "index.html"));
+        res.writeHead(200, { "content-type": MIME_TYPES[".html"] });
+        return res.end(html);
+      } catch {
+        // fall through
+      }
+    }
     notFound(res);
   }
 }
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.url.startsWith("/api/")) {
+    if (req.method === "POST" && req.url === "/telegram/webhook") {
+      await handleTelegramWebhook(req, res);
+    } else if (req.method === "GET" && req.url === "/telegram/setup") {
+      await handleTelegramSetup(req, res);
+    } else if (req.url.startsWith("/api/")) {
       await handleApi(req, res);
     } else {
       await serveStatic(req, res);
