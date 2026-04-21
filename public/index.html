@@ -15,6 +15,7 @@
           <h1>Привычки</h1>
         </div>
         <div class="top-actions">
+          <button class="icon-button" id="calendarButton" type="button" aria-label="Календарь">□</button>
           <button class="icon-button" id="settingsButton" type="button" aria-label="Настройки">⚙</button>
           <div class="avatar" id="avatar">D</div>
         </div>
@@ -23,13 +24,37 @@
       <div class="settings-menu" id="settingsMenu" hidden>
         <button type="button">Профиль</button>
         <button type="button">Настройки</button>
-        <button type="button">Цвет темы</button>
+        <div class="theme-group" aria-label="Цвет темы">
+          <span>Цвет темы</span>
+          <button type="button" data-theme-mode="system">Система</button>
+          <button type="button" data-theme-mode="dark">Тёмная</button>
+          <button type="button" data-theme-mode="light">Светлая</button>
+        </div>
       </div>
 
-      <section class="date-picker" aria-label="Выбор дня">
-        <button class="date-arrow" id="prevDayButton" type="button" aria-label="Предыдущий день">‹</button>
-        <div class="date-strip" id="dateStrip"></div>
-        <button class="date-arrow" id="nextDayButton" type="button" aria-label="Следующий день">›</button>
+      <section class="calendar-bar">
+        <button class="calendar-open" id="calendarOpenButton" type="button">
+          <span id="calendarOpenLabel">Сегодня</span>
+          <strong id="calendarOpenDate">21 апр.</strong>
+        </button>
+      </section>
+
+      <section class="calendar-panel" id="calendarPanel" hidden>
+        <div class="calendar-head">
+          <button class="calendar-nav" id="prevMonthButton" type="button" aria-label="Предыдущий месяц">‹</button>
+          <h2 id="calendarMonthTitle">Апрель 2026</h2>
+          <button class="calendar-nav" id="nextMonthButton" type="button" aria-label="Следующий месяц">›</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>Пн</span>
+          <span>Вт</span>
+          <span>Ср</span>
+          <span>Чт</span>
+          <span>Пт</span>
+          <span>Сб</span>
+          <span>Вс</span>
+        </div>
+        <div class="calendar-grid" id="calendarGrid" aria-label="Календарь месяца"></div>
       </section>
 
       <nav class="tabs range-tabs" aria-label="Период статистики">

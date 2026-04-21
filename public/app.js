@@ -5,7 +5,9 @@ const state = {
   app: null,
   today: "",
   selectedDate: "",
+  calendarMonth: "",
   range: 7,
+  themeMode: localStorage.getItem("themeMode") || "system",
   savingNote: null,
   editingHabitId: null,
   selectedWeekdays: new Set()
@@ -13,16 +15,23 @@ const state = {
 
 const colors = ["#54a9ff", "#67d391", "#f5c451", "#ff8a65", "#b08cff"];
 const weekNames = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-const weekdays = [1, 2, 3, 4, 5, 6, 0];
+const calendarWeekdays = [1, 2, 3, 4, 5, 6, 0];
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: light)");
 
 const el = {
   avatar: document.querySelector("#avatar"),
   dateLabel: document.querySelector("#dateLabel"),
   settingsButton: document.querySelector("#settingsButton"),
   settingsMenu: document.querySelector("#settingsMenu"),
-  prevDayButton: document.querySelector("#prevDayButton"),
-  nextDayButton: document.querySelector("#nextDayButton"),
-  dateStrip: document.querySelector("#dateStrip"),
+  calendarButton: document.querySelector("#calendarButton"),
+  calendarOpenButton: document.querySelector("#calendarOpenButton"),
+  calendarOpenLabel: document.querySelector("#calendarOpenLabel"),
+  calendarOpenDate: document.querySelector("#calendarOpenDate"),
+  calendarPanel: document.querySelector("#calendarPanel"),
+  calendarGrid: document.querySelector("#calendarGrid"),
+  calendarMonthTitle: document.querySelector("#calendarMonthTitle"),
+  prevMonthButton: document.querySelector("#prevMonthButton"),
+  nextMonthButton: document.querySelector("#nextMonthButton"),
   selectedDayTitle: document.querySelector("#selectedDayTitle"),
   progressText: document.querySelector("#progressText"),
   progressCaption: document.querySelector("#progressCaption"),
@@ -43,7 +52,8 @@ const el = {
   noteInput: document.querySelector("#noteInput"),
   saveStatus: document.querySelector("#saveStatus"),
   historyGrid: document.querySelector("#historyGrid"),
-  tabs: document.querySelectorAll(".tab")
+  tabs: document.querySelectorAll(".tab"),
+  themeButtons: document.querySelectorAll("[data-theme-mode]")
 };
 
 function telegramHeaders() {
@@ -74,6 +84,10 @@ function toDate(dateKey) {
 
 function dateKey(date) {
   return date.toISOString().slice(0, 10);
+}
+
+function monthKey(date) {
+  return dateKey(date).slice(0, 7);
 }
 
 function offsetDate(date, offset) {
@@ -173,6 +187,25 @@ function isFutureDate(dateKeyValue) {
   return dateKeyValue > state.today;
 }
 
+function resolvedTheme() {
+  if (state.themeMode === "system") return systemThemeQuery.matches ? "light" : "dark";
+  return state.themeMode;
+}
+
+function applyTheme() {
+  document.documentElement.dataset.theme = resolvedTheme();
+  document.documentElement.dataset.themeMode = state.themeMode;
+  el.themeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.themeMode === state.themeMode);
+  });
+}
+
+function setTheme(mode) {
+  state.themeMode = mode;
+  localStorage.setItem("themeMode", mode);
+  applyTheme();
+}
+
 function renderProfile(user) {
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || "Demo";
   el.avatar.textContent = name.slice(0, 1).toUpperCase();
@@ -182,21 +215,46 @@ function renderProfile(user) {
     month: "short"
   });
   el.selectedDayTitle.textContent = selectedTitle();
+  el.calendarOpenLabel.textContent = selectedTitle();
+  el.calendarOpenDate.textContent = formatDate(state.selectedDate, { day: "numeric", month: "short", year: "numeric" });
 }
 
-function renderDateStrip() {
-  el.dateStrip.replaceChildren();
+function renderCalendar() {
+  const monthDate = toDate(`${state.calendarMonth}-01`);
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const firstDay = new Date(year, month, 1, 12);
+  const lastDay = new Date(year, month + 1, 0, 12);
+  const leadingBlanks = (firstDay.getDay() + 6) % 7;
 
-  for (let i = -3; i <= 3; i += 1) {
-    const key = dayOffset(state.selectedDate, i);
+  el.calendarMonthTitle.textContent = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric"
+  }).format(firstDay);
+  el.calendarGrid.replaceChildren();
+
+  for (let i = 0; i < leadingBlanks; i += 1) {
+    const blank = document.createElement("span");
+    blank.className = "calendar-empty";
+    el.calendarGrid.append(blank);
+  }
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    const key = dateKey(new Date(year, month, day, 12));
+    const total = habitsForDate(key).length;
+    const done = checkedCount(key);
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "date-chip";
-    button.classList.toggle("selected", key === state.selectedDate);
+    button.className = "calendar-day";
+    button.dataset.level = String(completionLevel(key));
     button.classList.toggle("today", key === state.today);
-    button.innerHTML = `<span>${weekNames[toDate(key).getDay()]}</span><strong>${toDate(key).getDate()}</strong>`;
-    button.addEventListener("click", () => setSelectedDate(key));
-    el.dateStrip.append(button);
+    button.classList.toggle("selected", key === state.selectedDate);
+    button.innerHTML = `<span>${day}</span><small>${total ? `${done}/${total}` : ""}</small>`;
+    button.addEventListener("click", () => {
+      setSelectedDate(key);
+      el.calendarPanel.hidden = true;
+    });
+    el.calendarGrid.append(button);
   }
 }
 
@@ -264,7 +322,7 @@ function renderHistory() {
 
 function renderWeekdayPicker() {
   el.weekdayPicker.replaceChildren();
-  weekdays.forEach((day) => {
+  calendarWeekdays.forEach((day) => {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = weekNames[day];
@@ -288,7 +346,7 @@ function renderScheduleControls() {
 
 function render() {
   renderProfile(state.app.profile);
-  renderDateStrip();
+  renderCalendar();
   renderProgress();
   renderHabits();
   renderNote();
@@ -299,6 +357,7 @@ function render() {
 function setSelectedDate(dateKeyValue) {
   clearTimeout(state.savingNote);
   state.selectedDate = dateKeyValue;
+  state.calendarMonth = monthKey(toDate(dateKeyValue));
   el.saveStatus.textContent = "Сохранено";
   if (!state.editingHabitId) {
     el.scheduleDate.value = dateKeyValue;
@@ -352,9 +411,7 @@ async function toggleHabit(habitId, done) {
   });
   state.app = payload.state;
   tg?.HapticFeedback?.impactOccurred("light");
-  renderProgress();
-  renderHabits();
-  renderHistory();
+  render();
 }
 
 async function archiveHabit(habitId) {
@@ -412,11 +469,31 @@ el.habitForm.addEventListener("submit", (event) => {
 
 el.cancelEditButton.addEventListener("click", resetHabitForm);
 el.scheduleType.addEventListener("change", renderScheduleControls);
-el.prevDayButton.addEventListener("click", () => setSelectedDate(dayOffset(state.selectedDate, -1)));
-el.nextDayButton.addEventListener("click", () => setSelectedDate(dayOffset(state.selectedDate, 1)));
 el.resetDoneButton.addEventListener("click", () => clearSelectedDay().catch(console.error));
 el.settingsButton.addEventListener("click", () => {
   el.settingsMenu.hidden = !el.settingsMenu.hidden;
+});
+el.calendarButton.addEventListener("click", () => {
+  el.calendarPanel.hidden = !el.calendarPanel.hidden;
+});
+el.calendarOpenButton.addEventListener("click", () => {
+  el.calendarPanel.hidden = !el.calendarPanel.hidden;
+});
+el.prevMonthButton.addEventListener("click", () => {
+  const month = toDate(`${state.calendarMonth}-01`);
+  state.calendarMonth = monthKey(new Date(month.getFullYear(), month.getMonth() - 1, 1, 12));
+  renderCalendar();
+});
+el.nextMonthButton.addEventListener("click", () => {
+  const month = toDate(`${state.calendarMonth}-01`);
+  state.calendarMonth = monthKey(new Date(month.getFullYear(), month.getMonth() + 1, 1, 12));
+  renderCalendar();
+});
+el.themeButtons.forEach((button) => {
+  button.addEventListener("click", () => setTheme(button.dataset.themeMode));
+});
+systemThemeQuery.addEventListener("change", () => {
+  if (state.themeMode === "system") applyTheme();
 });
 
 el.noteInput.addEventListener("input", () => {
@@ -435,12 +512,14 @@ el.tabs.forEach((tab) => {
 });
 
 async function boot() {
+  applyTheme();
   tg?.ready();
   tg?.expand();
   const payload = await api("/api/state", { headers: telegramHeaders() });
   state.app = payload.state;
   state.today = payload.today;
   state.selectedDate = payload.today;
+  state.calendarMonth = monthKey(toDate(payload.today));
   resetHabitForm();
   render();
 }
