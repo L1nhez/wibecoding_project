@@ -75,6 +75,10 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isFutureDate(date) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && date > todayKey();
+}
+
 function createUserState(profile) {
   const now = new Date().toISOString();
   return {
@@ -275,6 +279,7 @@ async function handleApi(req, res) {
     const habitId = String(body.habitId || "");
     const habit = userState.habits.find((item) => item.id === habitId && !item.archived);
     if (!habit) return sendJson(res, 404, { error: "Habit not found" });
+    if (isFutureDate(date)) return sendJson(res, 400, { error: "Future check-ins are not allowed" });
 
     userState.checkins[date] ||= {};
     userState.checkins[date][habitId] = Boolean(body.done);

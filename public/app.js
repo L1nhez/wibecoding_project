@@ -169,6 +169,10 @@ function selectedTitle() {
   return formatDate(state.selectedDate, { day: "numeric", month: "long" });
 }
 
+function isFutureDate(dateKeyValue) {
+  return dateKeyValue > state.today;
+}
+
 function renderProfile(user) {
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || "Demo";
   el.avatar.textContent = name.slice(0, 1).toUpperCase();
@@ -211,17 +215,23 @@ function renderHabits() {
   el.habitList.replaceChildren();
   const checkins = state.app.checkins[state.selectedDate] || {};
   const habits = habitsForDate();
+  const isFuture = isFutureDate(state.selectedDate);
   el.emptyState.style.display = habits.length ? "none" : "block";
+  el.resetDoneButton.disabled = isFuture;
+  el.resetDoneButton.title = isFuture ? "Будущие дни нельзя отмечать выполненными" : "";
 
   habits.forEach((habit) => {
     const row = el.habitTemplate.content.firstElementChild.cloneNode(true);
     const done = Boolean(checkins[habit.id]);
     row.classList.toggle("done", done);
     row.querySelector("h3").textContent = habit.title;
-    row.querySelector("p").textContent = done ? "Выполнено" : scheduleLabel(habit);
+    row.querySelector("p").textContent = isFuture ? "Запланировано" : (done ? "Выполнено" : scheduleLabel(habit));
     row.querySelector(".check-button").style.borderColor = done ? habit.color : "";
     row.querySelector(".check-button span").style.background = done ? habit.color : "";
-    row.querySelector(".check-button").addEventListener("click", () => toggleHabit(habit.id, !done));
+    const checkButton = row.querySelector(".check-button");
+    checkButton.disabled = isFuture;
+    checkButton.title = isFuture ? "Будущие дни нельзя отмечать выполненными" : "";
+    checkButton.addEventListener("click", () => toggleHabit(habit.id, !done));
     row.querySelector(".edit-button").addEventListener("click", () => startEditHabit(habit));
     row.querySelector(".archive-button").addEventListener("click", () => archiveHabit(habit.id));
     el.habitList.append(row);
@@ -334,6 +344,8 @@ function startEditHabit(habit) {
 }
 
 async function toggleHabit(habitId, done) {
+  if (isFutureDate(state.selectedDate)) return;
+
   const payload = await api("/api/checkins", {
     method: "POST",
     body: JSON.stringify({ habitId, done, date: state.selectedDate })
@@ -380,6 +392,8 @@ async function saveNote() {
 }
 
 async function clearSelectedDay() {
+  if (isFutureDate(state.selectedDate)) return;
+
   const habits = habitsForDate();
   await Promise.all(habits.map((habit) => api("/api/checkins", {
     method: "POST",

@@ -45,6 +45,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .app-shell {
   position: relative;
   width: min(100%, 520px);
@@ -299,13 +304,13 @@ h2 {
   box-shadow: var(--shadow);
 }
 
-.summary span:first-child,
+.summary-main > span,
 .ring span,
 .streak strong {
   font-variant-numeric: tabular-nums;
 }
 
-.summary span:first-child {
+.summary-main > span {
   display: block;
   min-width: 112px;
   margin-bottom: 6px;
@@ -314,21 +319,31 @@ h2 {
 }
 
 .summary-side {
+  flex: 0 0 auto;
   gap: 12px;
 }
 
 .streak {
   display: grid;
   place-items: center;
-  min-width: 48px;
+  grid-template-rows: 26px 24px;
+  width: 54px;
   height: 64px;
   padding: 6px;
   border-radius: 8px;
   background: var(--panel-strong);
 }
 
+.streak span {
+  min-width: 0;
+  margin: 0;
+  font-size: 25px;
+  line-height: 1;
+}
+
 .streak strong {
   font-size: 18px;
+  line-height: 1;
 }
 
 .ring {
@@ -344,6 +359,7 @@ h2 {
   display: grid;
   width: 58px;
   height: 58px;
+  min-width: 0;
   place-items: center;
   border-radius: 50%;
   background: var(--panel);
@@ -421,6 +437,10 @@ h2 {
 
 .habit-row.done .check-button span {
   background: var(--good);
+}
+
+.check-button:disabled span {
+  background: transparent;
 }
 
 .habit-copy {
